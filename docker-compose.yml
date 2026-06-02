@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: store_intelligence
+      POSTGRES_USER: si_user
+      POSTGRES_PASSWORD: si_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U si_user -d store_intelligence"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://si_user:si_pass@db/store_intelligence
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: INFO
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python -m app.db.init_db &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - api
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: pipeline/Dockerfile
+    volumes:
+      - ./videos:/app/videos
+      - ./data:/app/data
+    container_name: store_intelligence_pipeline
+    depends_on:
+      - api
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  postgres_data:

@@ -1,0 +1,5 @@
+[run]
+omit =
+    app/models/responses.py
+    app/db/init_db.py
+    app/services/health.py

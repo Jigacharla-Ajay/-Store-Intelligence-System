@@ -1,0 +1,7 @@
+# Pipeline dependencies
+opencv-python>=4.8.0
+httpx>=0.25.0
+numpy>=1.24.0
+# Optional — install for GPU-accelerated detection:
+# ultralytics>=8.0.0
+# torch>=2.0.0
