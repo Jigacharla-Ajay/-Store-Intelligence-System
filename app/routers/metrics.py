@@ -20,9 +20,11 @@ router = APIRouter(tags=["Metrics"])
 
 
 @router.get("/stores/{store_id}/metrics")
+@router.get("/metrics")
+@router.get("/Metrics")
 async def get_metrics(
     request: Request,
-    store_id: str,
+    store_id: str = "STORE_BLR_002",
     window_minutes: int = Query(1440, ge=1, le=43200, description="Time window in minutes"),
     from_time: Optional[datetime] = Query(None, alias="from", description="Start time (ISO-8601)"),
     to_time: Optional[datetime] = Query(None, alias="to", description="End time (ISO-8601)"),

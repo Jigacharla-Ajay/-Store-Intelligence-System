@@ -1,78 +1,73 @@
 """
 Pydantic v2 models for event ingestion.
 
-Covers:
-  - EventMetadata: queue_depth, sku_zone, session_seq
-  - EventModel: full event schema with UUID v4, event_type enum, confidence 0-1
-  - IngestRequest: batch of up to 500 events
-  - IngestError: per-event error detail
+Accepts multiple flexible schemas (from the actual sample_events.jsonl)
+and normalizes them in the ingestion service.
 """
 
 from datetime import datetime
-from typing import Optional, List
-from enum import Enum
-
-from pydantic import BaseModel, Field, field_validator
-
-
-class EventType(str, Enum):
-    ENTRY = "ENTRY"
-    EXIT = "EXIT"
-    ZONE_ENTER = "ZONE_ENTER"
-    ZONE_EXIT = "ZONE_EXIT"
-    ZONE_DWELL = "ZONE_DWELL"
-    BILLING_QUEUE_JOIN = "BILLING_QUEUE_JOIN"
-    BILLING_QUEUE_ABANDON = "BILLING_QUEUE_ABANDON"
-    REENTRY = "REENTRY"
-
-
-class EventMetadata(BaseModel):
-    queue_depth: Optional[int] = None
-    sku_zone: Optional[str] = None
-    session_seq: int = 1
-
+from typing import Optional, List, Any
+from pydantic import BaseModel, Field
 
 class EventModel(BaseModel):
-    """Single detection event from the pipeline."""
-    event_id: str = Field(..., description="UUID v4 unique event identifier")
-    store_id: str = Field(..., max_length=20)
-    camera_id: str = Field(..., max_length=50)
-    visitor_id: str = Field(..., max_length=20)
-    event_type: str = Field(..., description="One of the 8 valid event types")
-    timestamp: datetime
-    zone_id: Optional[str] = Field(None, max_length=50)
-    dwell_ms: int = Field(0, ge=0)
+    """Flexible event model that accepts the old schema and the new polymorphic schemas."""
+    event_type: str = Field(..., description="Event type string")
+    
+    # Old Schema
+    event_id: Optional[str] = None
+    store_id: Optional[str] = None
+    camera_id: Optional[str] = None
+    visitor_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    zone_id: Optional[str] = None
+    dwell_ms: int = 0
     is_staff: bool = False
-    confidence: float = Field(..., ge=0.0, le=1.0)
-    metadata: EventMetadata = Field(default_factory=EventMetadata)
+    confidence: float = 1.0
+    metadata: dict = Field(default_factory=dict)
 
-    @field_validator("event_type")
-    @classmethod
-    def validate_event_type(cls, v):
-        valid = {e.value for e in EventType}
-        if v not in valid:
-            raise ValueError(
-                f"event_type '{v}' is not in allowed catalogue. "
-                f"Must be one of: {', '.join(sorted(valid))}"
-            )
-        return v
+    # New Entry/Exit Schema
+    id_token: Optional[str] = None
+    store_code: Optional[str] = None
+    event_timestamp: Optional[datetime] = None
+    gender_pred: Optional[str] = None
+    age_pred: Optional[int] = None
+    age_bucket: Optional[str] = None
+    is_face_hidden: Optional[bool] = None
+    group_id: Optional[str] = None
+    group_size: Optional[int] = None
+    
+    # New Zone Schema
+    track_id: Optional[Any] = None
+    event_time: Optional[datetime] = None
+    zone_name: Optional[str] = None
+    zone_type: Optional[str] = None
+    is_revenue_zone: Optional[str] = None
+    zone_hotspot_x: Optional[float] = None
+    zone_hotspot_y: Optional[float] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    
+    # New Queue Schema
+    queue_event_id: Optional[str] = None
+    queue_join_ts: Optional[datetime] = None
+    queue_served_ts: Optional[datetime] = None
+    queue_exit_ts: Optional[datetime] = None
+    wait_seconds: Optional[int] = None
+    queue_position_at_join: Optional[int] = None
+    abandoned: Optional[bool] = None
 
-    @field_validator("event_id")
-    @classmethod
-    def validate_uuid_format(cls, v):
-        """Validate event_id looks like a UUID."""
-        import uuid
-        try:
-            uuid.UUID(v, version=4)
-        except ValueError:
-            raise ValueError(f"event_id '{v}' is not a valid UUID v4")
-        return v
+    model_config = {"extra": "allow"}
 
 
 class IngestRequest(BaseModel):
     """Batch ingest request — max 500 events."""
     events: List[EventModel] = Field(..., max_length=500)
 
+
+class IngestErrorDetail(BaseModel):
+    index: int
+    event_id: str
+    reason: str
 
 class IngestError(BaseModel):
     """Error detail for a rejected event."""

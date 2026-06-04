@@ -49,12 +49,30 @@ async def compute_heatmap(
         )
         .group_by(ZoneVisit.zone_id)
     )
-    zone_data = {}
+    zone_data = {k: {"visit_count": 0, "total_dwell_ms": 0} for k in STORE_ZONES.keys()}
     for row in zone_stats_q.fetchall():
-        zone_data[row[0]] = {
-            "visit_count": row[1] or 0,
-            "avg_dwell_ms": int(row[2] or 0),
-        }
+        db_zone = (row[0] or "").upper()
+        visits = row[1] or 0
+        avg_dwell = row[2] or 0
+        total_dwell = visits * avg_dwell
+        
+        mapped_zone = None
+        if "SKINCARE" in db_zone: mapped_zone = "SKINCARE"
+        elif "MAKEUP" in db_zone: mapped_zone = "MAKEUP"
+        elif "BATH" in db_zone: mapped_zone = "BATH_BODY"
+        elif "BILLING" in db_zone: mapped_zone = "BILLING"
+        elif db_zone in STORE_ZONES: mapped_zone = db_zone
+        
+        if mapped_zone:
+            zone_data[mapped_zone]["visit_count"] += visits
+            zone_data[mapped_zone]["total_dwell_ms"] += total_dwell
+            
+    # Calculate weighted averages
+    for k in zone_data:
+        if zone_data[k]["visit_count"] > 0:
+            zone_data[k]["avg_dwell_ms"] = int(zone_data[k]["total_dwell_ms"] / zone_data[k]["visit_count"])
+        else:
+            zone_data[k]["avg_dwell_ms"] = 0
 
     # Count total sessions in the window (for confidence)
     session_count_q = await db.execute(

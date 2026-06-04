@@ -162,13 +162,12 @@ async def compute_metrics(
 
     # --- Abandonment ---
     billing_entries_q = await db.execute(
-        select(func.count(Event.event_id))
+        select(func.count(ZoneVisit.zone_visit_id))
         .where(
-            Event.store_id == store_id,
-            Event.event_type == "BILLING_QUEUE_JOIN",
-            Event.is_staff == False,
-            Event.timestamp >= from_time,
-            Event.timestamp <= to_time,
+            ZoneVisit.store_id == store_id,
+            ZoneVisit.zone_id == "BILLING",
+            ZoneVisit.enter_at >= from_time,
+            ZoneVisit.enter_at <= to_time,
         )
     )
     billing_entries = billing_entries_q.scalar() or 0

@@ -13,6 +13,7 @@ build/
 *.env.local
 
 # Database
+data/
 dev.db
 test.db
 *.sqlite3

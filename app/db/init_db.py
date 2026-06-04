@@ -73,6 +73,8 @@ async def seed_pos_transactions(session, csv_path: str = None):
     """
     if csv_path is None:
         possible_paths = [
+            os.path.join("updated_resources", "POS - sample transactionsb1e826f (1).csv"),
+            os.path.join("data", "POS - sample transactionsb1e826f (1).csv"),
             os.path.join("data", "Brigade_Bangalore_10_April_26.csv"),
             os.path.join("/app", "data", "Brigade_Bangalore_10_April_26.csv"),
             os.path.join("data", "Brigade_Bangalore_10_April_26 (1)bc6219c.csv"),
@@ -103,12 +105,22 @@ async def seed_pos_transactions(session, csv_path: str = None):
         reader = csv.DictReader(f)
 
         for row in reader:
-            invoice = row.get("invoice_number", "").strip()
-            if not invoice:
-                continue
+            # New format uses order_date, order_time, store_id
+            order_date = row.get("order_date", "").strip()
+            order_time = row.get("order_time", "").strip()
+            csv_store = row.get("store_id", "").strip()
+            
+            if not order_date or not order_time or not csv_store:
+                # Fallback to old format if invoice_number exists
+                invoice = row.get("invoice_number", "").strip()
+                if not invoice:
+                    continue
+                csv_store = row.get("store_id", "").strip()
+            else:
+                # Group by exact second for new format (surrogate invoice ID)
+                invoice = f"{csv_store}_{order_date}_{order_time}"
 
             # Map store_id
-            csv_store = row.get("store_id", "").strip()
             store_id = STORE_ID_MAP.get(csv_store, csv_store)
 
             # Parse timestamp (only from first row of each invoice)
