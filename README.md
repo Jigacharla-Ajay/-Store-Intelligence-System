@@ -21,7 +21,15 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 curl http://localhost:8000/health
 ```
 
-### Docker (Production)
+### Docker (Production / Evaluation)
+
+**⚠️ CRITICAL STEP FOR EVALUATORS ⚠️**
+Because the raw CCTV `.mp4` videos and POS `.csv` files exceed GitHub's file size limits, they are not included in this repository. 
+**Before running the system, you MUST place the evaluation data into the `data/` folder.**
+
+1. Create a folder named `data` in the root of the project.
+2. Place the POS transactions CSV into the `data/` folder (e.g. `data/POS - sample transactionsb1e826f (1).csv`).
+3. Place the CCTV video files into the `data/` folder (e.g. `data/CAM 1.mp4`, `data/CAM 2.mp4`, etc.).
 
 ```bash
 # Start all services

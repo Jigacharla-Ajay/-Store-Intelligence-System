@@ -14,6 +14,11 @@ build/
 
 # Database
 data/
+videos/
+updated_resources/
+*.zip
+*.mp4
+*.pdf
 dev.db
 test.db
 *.sqlite3
