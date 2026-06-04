@@ -93,3 +93,13 @@ The system is fully containerized via Docker Compose:
 - **Redis 7**: Session cache and real-time state
 - **API**: FastAPI on uvicorn with structured logging
 - **Pipeline**: Separate container with GPU support for YOLO inference
+
+## AI-Assisted Decisions
+
+In building this system, LLMs (like Gemini/Claude) were actively used as collaborative thought partners, specifically for architectural trade-offs and edge-case handling.
+
+1. **Detection Model Selection**: I originally considered a highly complex multi-camera Re-ID model. I prompted the AI to evaluate the trade-offs of DeepSORT vs. OSNet for this specific 5-camera constraint. The AI highlighted that given the distinct, non-overlapping field of views of the cameras, full Re-ID was overkill and a simpler centroid-based zone transition state machine would be far more computationally efficient while maintaining acceptable accuracy. I agreed and implemented the simpler, faster approach.
+
+2. **Event Schema Design**: I used an LLM to help design the `events` table schema. I initially planned to store mutable `session` state directly. The AI suggested moving to an append-only, immutable event log (`ENTRY`, `ZONE_ENTER`, `ZONE_EXIT`) and deriving the sessions asynchronously. I adopted this approach because it solved the concurrency and idempotency issues I was facing with the API.
+
+3. **Handling Re-entry Edge Cases**: When writing the funnel logic, I realized customers who exit and re-enter the store were being double-counted. I prompted the AI with my SQL query and asked how to deduplicate while preserving chronological stage progression. The AI suggested grouping by a derived `session_seq` identifier. I reviewed the SQL, refined it to use SQLAlchemy's window functions, and integrated it successfully.
